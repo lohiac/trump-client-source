@@ -1,52 +1,7 @@
 local HttpService = game:GetService("HttpService")
 local PlaceId = game.PlaceId
 
-local function getUpdate()
-    local universeUrl = "https://apis.roblox.com/universes/v1/places/" .. PlaceId .. "/universe"
 
-    local success, response =
-        pcall(
-        function()
-            return game:HttpGet(universeUrl)
-        end
-    )
-
-    if success then
-        local data = HttpService:JSONDecode(response)
-
-        if data and data.universeId then
-            local universeId = data.universeId
-            local updateUrl = "https://games.roblox.com/v1/games?universeIds=" .. universeId
-
-            success, response =
-                pcall(
-                function()
-                    return game:HttpGet(updateUrl)
-                end
-            )
-
-            if success then
-                data = HttpService:JSONDecode(response)
-
-                if data and data.data and #data.data > 0 then
-                    local gameDetails = data.data[1] -- Lua tables are 1-indexed
-                    local updatedTime = gameDetails.updated
-                    return updatedTime
-                end
-            end
-        end
-    end
-
-    return nil
-end
-
-local scriptUpdate = "2024-07-19T21:28:52.863Z"
-local currentUpdate = getUpdate()
-
-if currentUpdate ~= scriptUpdate then
-    print("Current Update Is " .. currentUpdate)
-    error("New update. Wait for a new one in the discord. https://discord.gg/aSUewbrN")
-end
 
 local Rayfield = loadstring(game:HttpGet("https://raw.githubusercontent.com/PorkDevMode/trump-client/main/Ui.luau"))()
 
