@@ -3,7 +3,7 @@ local PlaceId = game.PlaceId
 
 
 
-local Rayfield = loadstring(game:HttpGet("https://raw.githubusercontent.com/PorkDevMode/trump-client/main/Ui.luau"))()
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Esp = loadstring(game:HttpGet("https://raw.githubusercontent.com/PorkDevMode/trump-client/main/esp.luau"))()
 local Players = game:GetService("Players")
