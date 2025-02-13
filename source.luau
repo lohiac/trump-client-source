@@ -225,27 +225,43 @@ local function resetHookTension()
     end
 end
 
+local players = game:GetService("Players")
+local LocalPlayer = players.LocalPlayer
+
+-- Store the currently displayed state GUI for each player
+local activeStates = {}
+
 local function displayStateAboveHead(player, state)
     local playerChar = player.Character
-    if not playerChar then
-        return
-    end
-    if player.Team == LocalPlayer.Team then
-        return
+    if not playerChar then return end
+
+    local head = playerChar:FindFirstChild("Head")
+    if not head then return end
+
+    -- Check if the player already has an active state
+    if activeStates[player] then
+        -- If the state is the same, don't update
+        if activeStates[player].state == state then
+            return
+        end
+        -- Destroy the existing state GUI before creating a new one
+        activeStates[player].stateGui:Destroy()
     end
 
-    local existingGui = playerChar:FindFirstChild("StateGui")
-    if existingGui then
-        existingGui:Destroy()
-    end
-
+    -- Create a new state GUI
     if state ~= "Default" then
         local billboardGui = Instance.new("BillboardGui")
         billboardGui.Name = "StateGui"
         billboardGui.Size = UDim2.new(0, 300, 0, 75)
-        billboardGui.StudsOffset = Vector3.new(0, 5, 0)
+        billboardGui.StudsOffset = Vector3.new(0, 2.5, 0) -- Adjusted for better positioning
         billboardGui.AlwaysOnTop = true
-        billboardGui.Parent = playerChar
+        billboardGui.Adornee = head
+        billboardGui.Parent = head
+
+        local frame = Instance.new("Frame")
+        frame.Size = UDim2.new(1, 0, 1, 0)
+        frame.BackgroundTransparency = 1
+        frame.Parent = billboardGui
 
         local textLabel = Instance.new("TextLabel")
         textLabel.Size = UDim2.new(1, 0, 1, 0)
@@ -255,95 +271,89 @@ local function displayStateAboveHead(player, state)
         textLabel.TextSize = 36
         textLabel.TextStrokeTransparency = 0.5
         textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+        textLabel.Parent = frame
 
-        if state == "Countering" then
-            textLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-        elseif state == "Kicking" then
-            textLabel.TextColor3 = Color3.fromRGB(89, 0, 255)
-        elseif state == "Blade" then
-            textLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
-        elseif state == "TitanBlocking" then
-            textLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
-        elseif state == "TitanRoaring" then
-            textLabel.TextColor3 = Color3.fromRGB(105, 60, 114)
-        elseif state == "TitanStunned" then
-            textLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-        elseif state == "TitanHeavying" then
-            textLabel.TextColor3 = Color3.fromRGB(255, 253, 123)
-        end
+        -- Assign text color based on state
+        local colors = {
+            Countering = Color3.fromRGB(0, 255, 0),
+            Kicking = Color3.fromRGB(89, 0, 255),
+            Blade = Color3.fromRGB(255, 0, 0),
+            TitanBlocking = Color3.fromRGB(255, 0, 0),
+            TitanRoaring = Color3.fromRGB(105, 60, 114),
+            TitanStunned = Color3.fromRGB(0, 255, 0),
+            TitanHeavying = Color3.fromRGB(255, 253, 123)
+        }
 
-        textLabel.Parent = billboardGui
+        textLabel.TextColor3 = colors[state] or Color3.fromRGB(255, 255, 255) -- Default to white
+
+        -- Store the active state and stateGui
+        activeStates[player] = {
+            state = state,
+            stateGui = billboardGui
+        }
     end
 end
 
 local function retrievePlayerStates()
-    local players = game:GetService("Players")
-    local LocalPlayer = players.LocalPlayer
+    if not LocalPlayer or not LocalPlayer.Character then return end
+
+    local localHumanoidRootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not localHumanoidRootPart then return end
 
     for _, player in pairs(players:GetPlayers()) do
+        if player == LocalPlayer then continue end
+
         local playerChar = player.Character
+        if not playerChar then continue end
+
         local playerHumanoid = playerChar:FindFirstChild("Humanoid")
-        local localHumanoidRootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local playerHumanoidRootPart = playerChar:FindFirstChild("HumanoidRootPart")
+        local snape = playerChar:FindFirstChild("SNape")
 
-        if playerChar and playerHumanoid and localHumanoidRootPart then
-            local playerHumanoidRootPart = playerChar:FindFirstChild("HumanoidRootPart")
-            local snape = playerChar:FindFirstChild("SNape")
-            if playerHumanoidRootPart and not snape then
-                local distance = (localHumanoidRootPart.Position - playerHumanoidRootPart.Position).Magnitude
-                if distance <= 1000 then
-                    local counterState = playerHumanoid:FindFirstChild("Counter")
-                    local kickState = playerHumanoid:FindFirstChild("KickAttacking")
-                    local bladeState = playerHumanoid:FindFirstChild("BladeAttacking")
+        if not playerHumanoid or not playerHumanoidRootPart then continue end
 
-                    if counterState and kickState and bladeState then
-                        local counterValue = counterState.Value
-                        local kickValue = kickState.Value
-                        local bladeValue = bladeState.Value
+        local distance = (localHumanoidRootPart.Position - playerHumanoidRootPart.Position).Magnitude
+        if distance > 1000 then continue end
 
-                        local state
-                        if counterValue then
-                            state = "Countering"
-                        elseif kickValue then
-                            state = "Kicking"
-                        elseif bladeValue then
-                            state = "Blade"
-                        else
-                            state = "Default"
-                        end
+        local state = "Default"
 
-                        if player.Team == LocalPlayer.Team then
-                            return
-                        end
-                        displayStateAboveHead(player, state)
-                    end
-                end
-            elseif snape and playerHumanoidRootPart then
-                if player.Team == LocalPlayer.Team then
-                    return
-                end
-                local Shifting = playerHumanoid.Shifting
+        -- Normal state handling
+        if not snape then
+            local counterState = playerHumanoid:FindFirstChild("Counter")
+            local kickState = playerHumanoid:FindFirstChild("KickAttacking")
+            local bladeState = playerHumanoid:FindFirstChild("BladeAttacking")
 
-                local blocking = Shifting.Blocking
-                local heavying = Shifting.HeavyAttack
-                local roaring = Shifting.Roar
-                local stunned = Shifting.Roar
-
-                local state
-
-                if blocking then
-                    state = "TitanBlocking"
-                elseif heavying then
-                    state = "TitanHeavying"
-                elseif roaring then
-                    state = "TitanRoaring"
-                elseif stunned then
-                    state = "TitanStunned"
-                else
-                    state = "Default"
-                end
-
-                displayStateAboveHead(player, state)
+            if counterState and counterState.Value then
+                state = "Countering"
+            elseif kickState and kickState.Value then
+                state = "Kicking"
+            elseif bladeState and bladeState.Value then
+                state = "Blade"
             end
+
+        -- Titan state handling
+        else
+            local shifting = playerHumanoid:FindFirstChild("Shifting")
+            if shifting then
+                local blocking = shifting:FindFirstChild("Blocking")
+                local heavying = shifting:FindFirstChild("HeavyAttack")
+                local roaring = shifting:FindFirstChild("Roar")
+                local stunned = shifting:FindFirstChild("Stunned")
+
+                if blocking and blocking.Value then
+                    state = "TitanBlocking"
+                elseif heavying and heavying.Value then
+                    state = "TitanHeavying"
+                elseif roaring and roaring.Value then
+                    state = "TitanRoaring"
+                elseif stunned and stunned.Value then
+                    state = "TitanStunned"
+                end
+            end
+        end
+
+        if player.Team ~= LocalPlayer.Team then
+            displayStateAboveHead(player, state)
         end
     end
 end
